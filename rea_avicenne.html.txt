@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Réa-Check Avicenne TOTAL</title>
+    <style>
+        :root { 
+            --neon: #00e5ff; 
+            --bg-dark: #0a2f5f;
+            --card: rgba(0, 45, 90, 0.94); 
+            --alert: #ff3e3e; 
+            --info: #ffca28; 
+            --antidote: #5eff00; 
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; color: white; padding-bottom: 50px;
+            background-color: var(--bg-dark);
+            overflow-x: hidden;
+        }
+
+        /* --- BACKGROUND AVICENNE FIXÉ --- */
+        .hospital-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            /* Utilisation d'une image haute résolution de l'AP-HP Avicenne */
+            background: url('https://upload.wikimedia.org/wikipedia/commons/d/d4/H%C3%B4pital_Avicenne_-_Bobigny.jpg') no-repeat center center;
+            background-size: cover;
+            z-index: -3;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(10, 47, 95, 0.85), rgba(10, 47, 95, 0.95));
+            z-index: -2;
+        }
+
+        #ecg-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.2;
+        }
+
+        header { 
+            background: rgba(0, 40, 80, 0.95); 
+            padding: 15px; text-align: center; 
+            position: sticky; top: 0; z-index: 100; 
+            border-bottom: 2px solid var(--neon);
+        }
+
+        h1 { font-size: 1rem; margin: 0; color: var(--neon); letter-spacing: 1px; text-transform: uppercase; }
+
+        .search-bar { 
+            padding: 12px; width: 85%; margin: 15px auto; display: block; 
+            border-radius: 25px; border: 1px solid var(--neon); 
+            background: rgba(255,255,255,0.1); color: white; font-size: 16px;
+        }
+
+        .famille-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+        
+        .famille-btn { 
+            background: rgba(0, 102, 204, 0.7); padding: 12px 5px; border-radius: 8px; 
+            text-align: center; font-weight: bold; font-size: 10px; border: 1px solid rgba(255,255,255,0.2);
+            text-transform: uppercase;
+        }
+
+        .urgent-btn { background: rgba(206, 0, 0, 0.8) !important; border: 1px solid #ff3e3e !important; }
+
+        .med-section { display: none; padding: 10px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .med-card { 
+            background: var(--card); border-radius: 10px; margin-bottom: 12px; 
+            border-left: 5px solid var(--neon); overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .med-header { padding: 15px; font-weight: bold; display: flex; justify-content: space-between; cursor: pointer; font-size: 15px; }
+        
+        .med-content { display: none; padding: 15px; font-size: 14px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); }
+
+        .pharma-box { background: rgba(255,255,255,0.05); border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+        .pharma-title { color: var(--info); font-weight: bold; font-size: 11px; text-transform: uppercase; display: block; margin-top: 5px; }
+        .antidote-tag { color: var(--antidote); font-weight: bold; border: 1px solid var(--antidote); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 5px; background: rgba(94, 255, 0, 0.1); }
+
+        .instruction { background: var(--alert); color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-bottom: 8px; display: inline-block; }
+
+        .calc { background: rgba(0,229,255,0.1); padding: 12px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--neon); }
+        .calc input { width: 65px; padding: 8px; border-radius: 5px; border: none; text-align: center; font-size: 16px; margin: 5px; background: white; color: black; }
+        
+        .result { margin-top: 10px; color: var(--antidote); font-weight: bold; text-align: center; font-size: 1.2rem; }
+
+        button { width: 100%; padding: 12px; background: var(--neon); border: none; border-radius: 5px; font-weight: bold; margin-top: 10px; color: #002d4d; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="hospital-bg"></div>
+<div class="overlay"></div>
+<canvas id="ecg-bg"></canvas>
+
+<header><h1>🏥 RÉA-CHECK : AVICENNE EXPERT</h1></header>
+
+<input type="text" class="search-bar" placeholder="🔍 Rechercher un protocole..." onkeyup="search(this.value)">
+
+<div class="famille-grid">
+    <div class="famille-btn urgent-btn" onclick="show('urgences')">🚨 URGENCES / ACR</div>
+    <div class="famille-btn" onclick="show('catecho')">⚡ CATÉCHOLAMINES</div>
+    <div class="famille-btn" onclick="show('sedation')">💤 SÉDATION / STUPS</div>
+    <div class="famille-btn" onclick="show('curares')">🧊 CURARES</div>
+    <div class="famille-btn" onclick="show('antibio')">🦠 ANTIBIOTIQUES</div>
+    <div class="famille-btn" onclick="show('autres')">📦 AUTRES / KCL</div>
+</div>
+
+<div id="urgences" class="med-section">
+    <div class="med-card" style="border-left-color: #ff3e3e;">
+        <div class="med-header" onclick="tog(this)">ADRÉNALINE (Arrêt Cardiaque) <span>+</span></div>
+        <div class="med-content">
+            <span class="instruction">IV DIRECTE / IO</span>
+            <div class="pharma-box">
+                <span class="pharma-title">Protocole ACR</span> 1mg toutes les 3 à 5 min (après 3ème choc en FV/TVSP).
+                <span class="pharma-title">Préparation</span> Pur (1mg/ml) ou dilué dans 9ml NaCl (0.1mg/ml).
+            </div>
+        </div>
+    </div>
+    <div class="med-card" style="border-left-color: #ff3e3e;">
+        <div class="med-header" onclick="tog(this)">AMIODARONE (Cordarone®) <span>+</span></div>
+        <div class="med-content">
+            <span class="instruction">G5% EXCLUSIF</span>
+            <div class="pharma-box">
+                <span class="pharma-title">ACR (FV/TV résistante)</span> 300mg (2 amp) après 3ème choc, puis 150mg après 5ème choc.
+                <span class="pharma-title">Effet secondaire</span> Bradycardie, hypotension.
+            </div>
+        </div>
+    </div>
+    <div class="med-card" style="border-left-color: #ff3e3e;">
+        <div class="med-header" onclick="tog(this)">ATROPINE <span>+</span></div>
+        <div class="med-content">
+            <span class="pharma-title">Indication</span> Bradycardie sinusale symptomatique.
+            <span class="pharma-title">Dose</span> 0.5mg IVD. Max 3mg.
+        </div>
+    </div>
+    <div class="med-card" style="border-left-color: #ff3e3e;">
+        <div class="med-header" onclick="tog(this)">ÉPHÉDRINE <span>+</span></div>
+        <div class="med-content">
+            <p>Amp de 30mg/ml. Diluer dans 9ml NaCl (3mg/ml).</p>
+            <span class="pharma-title">Dose</span> Bolus de 3 à 6mg selon PA.
+        </div>
+    </div>
+</div>
+
+<div id="catecho" class="med-section">
+    <div class="med-card">
+        <div class="med-header" onclick="tog(this)">Noradrénaline (PSE) <span>+</span></div>
+        <div class="med-content">
+            <span class="instruction">VOIE PROXIMALE | G5%</span>
+            <div class="calc">
+                Poids (kg): <input type="number" id="w_nora" value="75"><br>
+                Dose (µg/kg/min): <input type="number" id="d_nora" value="0.1" step="0.05"><br>
+                Conc: <select id="c_nora" style="width:80px;"><option value="0.5">0.5</option><option value="1">1.0</option></select> mg/ml
+                <button onclick="cal_nora()">CALCULER ML/H</button>
+                <div id="res_nora" class="result"></div>
+            </div>
+        </div>
+    </div>
+    <div class="med-card">
+        <div class="med-header" onclick="tog(this)">Dobutamine (Poids x 3) <span>+</span></div>
+        <div class="med-content">
+            <p>Règle : (Poids x 3) mg dans 50ml G5%.</p>
+            <div class="calc">
+                Poids: <input type="number" id="w_dobu" value="75"> kg
+                <button onclick="cal_dobu()">CALCULER PREP</button>
+                <div id="res_dobu" class="result"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="sedation" class="med-section">
+    <div class="med-card">
+        <div class="med-header" onclick="tog(this)">Sufentanil <span>+</span></div>
+        <div class="med-content">
+            <span class="antidote-tag">Antidote : NALOXONE</span>
+            <div class="calc">
+                Presc (µg/h) : <input type="number" id="d_suf" value="10">
+                <button onclick="res('res_suf', document.getElementById('d_suf').value / 10)">CALCULER ML/H</button>
+                <div id="res_suf" class="result"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="autres" class="med-section">
+    <div class="med-card">
+        <div class="med-header" onclick="tog(this)">Potassium (KCl) <span>+</span></div>
+        <div class="med-content">
+            <span class="instruction">MAX 1g/H SUR CVC</span>
+            <p>1g = 10ml. Voie distale dédiée.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function tog(el) { 
+        const c = el.nextElementSibling; 
+        const isVisible = c.style.display === "block";
+        c.style.display = isVisible ? "none" : "block"; 
+        el.querySelector('span').innerText = isVisible ? "+" : "-";
+    }
+
+    function show(id) { 
+        document.querySelectorAll('.med-section').forEach(s => s.style.display = 'none'); 
+        document.getElementById(id).style.display = 'block'; 
+        window.scrollTo(0, 150);
+    }
+
+    function search(q) {
+        q = q.toLowerCase();
+        document.querySelectorAll('.med-card').forEach(m => {
+            m.style.display = m.innerText.toLowerCase().includes(q) ? "block" : "none";
+        });
+        if(q.length > 0) document.querySelectorAll('.med-section').forEach(s => s.style.display = 'block');
+    }
+
+    function res(id, val) { document.getElementById(id).innerText = val.toFixed(2) + " ml/h"; }
+
+    function cal_nora() {
+        let w = document.getElementById('w_nora').value;
+        let d = document.getElementById('d_nora').value;
+        let c = document.getElementById('c_nora').value;
+        let v = (d * w * 60) / (c * 1000);
+        let out = v.toFixed(2) + " ml/h";
+        if(v > 5 && c == 0.5) out += "<br><small style='color:#ff3e3e'>⚠️ PASSER EN 1 mg/ml</small>";
+        document.getElementById('res_nora').innerHTML = out;
+    }
+
+    function cal_dobu() {
+        let w = document.getElementById('w_dobu').value;
+        let mg = w * 3;
+        let ml_amp = (mg * 20) / 250;
+        document.getElementById('res_dobu').innerHTML = `Prélèvement : ${ml_amp.toFixed(1)}ml de produit + G5% QSP 50ml`;
+    }
+
+    // ECG Animation
+    const canvas = document.getElementById('ecg-bg');
+    const ctx = canvas.getContext('2d');
+    let x = 0;
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.onresize = resize; resize();
+    function draw() {
+        ctx.fillStyle = "rgba(10, 47, 95, 0.05)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#00e5ff";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x, canvas.height/2);
+        x += 2.5;
+        let y = canvas.height/2;
+        if(x % 150 < 4) y -= 40; if(x % 150 >= 4 && x % 150 < 8) y += 50;
+        ctx.lineTo(x, y); ctx.stroke();
+        if (x > canvas.width) x = 0;
+        requestAnimationFrame(draw);
+    }
+    draw();
+</script>
+</body>
+</html>
